@@ -1,4 +1,4 @@
-name: Deploy Armored Bus Stop
+name: Validate Armored Bus Stop
 
 on:
   push:
@@ -7,27 +7,25 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: true
 
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/configure-pages@v5
+      - uses: actions/setup-node@v4
         with:
-          enablement: true
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: .
-      - name: Deploy
-        id: deployment
-        uses: actions/deploy-pages@v4
+          node-version: 22
+      - name: Check inline game script syntax
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          text = Path('index.html').read_text()
+          match = re.search(r'<script>\s*(.*?)\s*</script>', text, re.S)
+          if not match:
+              raise SystemExit('inline game script missing')
+          Path('/tmp/armored-bus-stop.js').write_text(match.group(1))
+          PY
+          node --check /tmp/armored-bus-stop.js
